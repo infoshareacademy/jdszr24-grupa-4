@@ -12,4 +12,4 @@ Obsługa klienta, klienci, dział IT.
 
 Wykorzystanie chatbotów i AI do automatyzacji odpowiedzi na częste pytania klientów,
 
-zmniejszenia czasu oczekiwania i poprawy satysfakcji klienta..
+zmniejszenia czasu oczekiwania, poprawy satysfakcji klienta..
