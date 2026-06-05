@@ -1,0 +1,355 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -752,
+        0
+      ],
+      "id": "df14d509-0a3d-4421-a1b4-36734d578664",
+      "name": "When chat message received",
+      "webhookId": "41494c30-7331-49dd-adcd-95ec1fc32535"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Jesteś asystentem odpowiadającym wyłącznie na podstawie dostarczonego JSON-a ze strony internetowej.\n\nMasz odpowiadać precyzyjnie, krótko i rzeczowo po polsku.\n\nKONTEKST:\nTytuł strony:\n{{ $json.tytul }}\n\nDane kontaktowe:\n{{ JSON.stringify($json.kontakt, null, 2) }}\n\nFormularz:\n{{ JSON.stringify($json.formularz, null, 2) }}\n\nNagłówki:\n{{ JSON.stringify($json.naglowki, null, 2) }}\n\nOferta:\n{{ JSON.stringify($json.oferta, null, 2) }}\n\nOpis:\n{{ JSON.stringify($json.opis, null, 2) }}\n\nLinki:\n{{ JSON.stringify($json.linki, null, 2) }}\n\nPYTANIE UŻYTKOWNIKA:\n{{ $json.chatInput }}\n\nZASADY ODPOWIEDZI:\n1. Odpowiadasz wyłącznie na podstawie kontekstu.\n2. Nie używasz wiedzy zewnętrznej.\n3. Nie zgadujesz i nie dopowiadasz.\n4. Jeśli pytanie dotyczy kontaktu, najpierw sprawdź:\n   - $json.kontakt.telefon\n   - $json.kontakt.email\n   - $json.kontakt.www\n5. Jeśli pytanie dotyczy formularza, najpierw sprawdź:\n   - $json.formularz.placeholders\n   - $json.formularz.opcjeSelect\n   - $json.formularz.nazwyPol\n6. Jeśli pytanie dotyczy oferty, usług, produktów, specjalizacji lub zakresu działalności, korzystaj głównie z:\n   - $json.oferta\n   - $json.opis\n   - $json.naglowki\n7. Jeśli pytanie dotyczy nawigacji lub sekcji strony, korzystaj z:\n   - $json.naglowki\n   - $json.linki\n8. Jeśli informacja nie występuje w kontekście, odpowiedz dokładnie:\n   \"Nie znalazłem tej informacji w dostarczonym kontekście.\"\n9. Nie cytuj JSON-a dosłownie.\n10. Nie wspominaj o polach technicznych ani nazwach kluczy JSON.\n11. Odpowiedź ma być naturalna i końcowa, bez komentarzy typu \"na podstawie danych wejściowych\".\n12. Jeśli pytanie jest bardzo krótkie, najpierw ustal jego intencję:\n   - \"telefon\" → zwróć numer telefonu,\n   - \"email\" / \"mail\" → zwróć adres e-mail,\n   - \"strona\" / \"www\" → zwróć adres strony,\n   - \"formularz\" → opisz pola formularza,\n   - \"oferta\" / \"usługi\" → streść zakres oferty.\n13. Gdy pytanie dotyczy pojedynczej informacji, odpowiedz jednym precyzyjnym zdaniem.\n14. Gdy pytanie dotyczy listy lub zakresu usług, odpowiedz w 2–4 krótkich punktach.\n15. Jeśli w kontekście istnieje jedna wyraźnie najlepsza odpowiedź, podaj ją bez zbędnych dodatków.\n\nFORMAT ODPOWIEDZI:\n- Dla telefonu:\n  \"Numer telefonu: …\"\n- Dla e-maila:\n  \"Adres e-mail: …\"\n- Dla strony WWW:\n  \"Strona internetowa: …\"\n- Dla formularza:\n  \"Formularz zawiera pola: …\"\n- Dla oferty:\n  \"Firma oferuje m.in.: …\"",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        208,
+        0
+      ],
+      "id": "9db7c490-a096-486a-978c-78b62723fa04",
+      "name": "AI Agent",
+      "alwaysOutputData": true,
+      "executeOnce": true
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        208,
+        240
+      ],
+      "id": "1979b3bc-fd0c-43e9-a54e-bd13d95c0ef3",
+      "name": "Google Gemini Chat Model",
+      "notesInFlow": true,
+      "credentials": {
+        "googlePalmApi": {
+          "id": "BRYXE4WYAY2AcZMq",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.4,
+      "position": [
+        336,
+        240
+      ],
+      "id": "68b79aa7-bfd5-4d25-a378-941f025cd992",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "method": "=GET",
+        "url": "http://host.docker.internal:8080/index.html",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequestTool",
+      "typeVersion": 4.4,
+      "position": [
+        -1264,
+        416
+      ],
+      "id": "0f7569fd-01af-4bdc-9972-dba44ddbfc8f",
+      "name": "HTTP Request",
+      "notesInFlow": true
+    },
+    {
+      "parameters": {
+        "url": "http://host.docker.internal:8080/index.html",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -528,
+        0
+      ],
+      "id": "7e7953b2-4783-4f97-a809-642428dc9452",
+      "name": "HTTP Request1"
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "cena"
+            },
+            {
+              "key": "tytul",
+              "cssSelector": "h1"
+            },
+            {
+              "key": "opis",
+              "cssSelector": "p",
+              "returnArray": true
+            },
+            {
+              "key": "linki",
+              "cssSelector": "a",
+              "returnValue": "attribute",
+              "attribute": "href"
+            },
+            {
+              "key": "naglowki",
+              "cssSelector": "h1, h2, h3",
+              "returnArray": true
+            },
+            {
+              "key": "=telefon_text",
+              "cssSelector": "a[href^=\"tel:\"] span, a[href^=\"tel:\"]",
+              "returnArray": true
+            },
+            {
+              "key": "telefon_href",
+              "cssSelector": "a[href^=\"tel:\"]",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            },
+            {
+              "key": "email_href",
+              "cssSelector": "a[href^=\"mailto:\"]",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            },
+            {
+              "key": "www_href",
+              "cssSelector": "a[href*=\"ergosystem.pl\"]",
+              "returnValue": "attribute",
+              "attribute": "href",
+              "returnArray": true
+            },
+            {
+              "key": "formularz_html",
+              "cssSelector": "from",
+              "returnValue": "html"
+            },
+            {
+              "key": "formularz_input_names",
+              "cssSelector": "form input[name], form textarea[name], form select[name]",
+              "returnValue": "attribute",
+              "attribute": "name",
+              "returnArray": true
+            },
+            {
+              "key": "formularz_placeholders",
+              "cssSelector": "form input[placeholder], form textarea[placeholder]",
+              "returnValue": "attribute",
+              "attribute": "placeholder",
+              "returnArray": true
+            },
+            {
+              "key": "formularz_select_options",
+              "cssSelector": "form option",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -304,
+        0
+      ],
+      "id": "ab9cbe42-1098-4d01-9063-565d8a5ed5ce",
+      "name": "HTML"
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chat",
+      "typeVersion": 1.3,
+      "position": [
+        -1072,
+        400
+      ],
+      "id": "c6a840a8-92d2-4134-ad81-39afbd0b6249",
+      "name": "Chat",
+      "webhookId": "b3140a1d-b147-4adf-b5f2-4fbcd72e6d26"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9a47c614-ba2d-4203-ba6f-65229b2a0778",
+              "name": "chatInput",
+              "value": "",
+              "type": "string"
+            },
+            {
+              "id": "aaa7e35c-5c24-46b4-95c5-b85f74a27649",
+              "name": "chatInput",
+              "value": "={{ $('When chat message received').item.json.chatInput }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        64,
+        0
+      ],
+      "id": "ff82daab-2b8d-4c8b-b3a8-7c90b8f483e6",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and add a new field called 'myNewField' to the JSON of each one\n// for (const item of $input.all()) {\n//   item.json.myNewField = 1;\n// }\n\n// return $input.all();\n\nconst item = $input.first().json;\n\nconst toArray = (v) => Array.isArray(v) ? v : (v == null || v === '' ? [] : [v]);\n\nconst cleanText = (v) =>\n  String(v || '')\n    .replace(/\\u00a0/g, ' ')\n    .replace(/\\s+/g, ' ')\n    .trim();\n\nconst uniq = (arr) => [...new Set(arr.map(cleanText).filter(Boolean))];\n\nconst removeEmptyLike = (arr) =>\n  uniq(arr).filter(v => !/^pusty$/i.test(v));\n\nconst decodeSafe = (v) => {\n  try {\n    return decodeURIComponent(v);\n  } catch {\n    return v;\n  }\n};\n\nconst opis = removeEmptyLike(toArray(item.opis));\nconst naglowki = removeEmptyLike(toArray(item.naglowki));\nconst linki = removeEmptyLike(toArray(item.linki));\n\nconst tekstTelefonu = removeEmptyLike(\n  toArray(item.tekst_telefonu || item.telefon_text)\n);\n\nconst telefonHref = removeEmptyLike(\n  toArray(item.telefon_href).map(v =>\n    cleanText(decodeSafe(v))\n      .replace(/^tel\\.?:/i, '')\n      .trim()\n  )\n);\n\nconst emailHref = removeEmptyLike(\n  toArray(item[\"adres e-mail_href\"] || item.email_href).map(v =>\n    cleanText(v).replace(/^mailto:/i, '')\n  )\n);\n\nconst wwwHref = removeEmptyLike(\n  toArray(item.www_href).map(v => cleanText(decodeSafe(v)))\n);\n\nconst formularzNazwy = removeEmptyLike(\n  toArray(item.formularz_nazw_wejściowych || item.formularz_input_names)\n);\n\nconst formularzPlaceholders = removeEmptyLike(\n  toArray(item.formularz_placeholders)\n);\n\nconst formularzOpcje = removeEmptyLike(\n  toArray(item.formularz_select_options)\n);\n\nconst cena = removeEmptyLike(toArray(item.cena));\nconst tytul = cleanText(item.tytuł || item.tytul || '');\n\nconst telefonFinal = tekstTelefonu[0] || telefonHref[0] || '';\nconst emailFinal = emailHref[0] || '';\nconst wwwFinal = wwwHref.find(v => /^https?:\\/\\//i.test(v)) || wwwHref[0] || '';\n\nconst oferta = opis.filter(v =>\n  !/radosław|włodarczyk|@ergosystem|tel\\.|mailto:|wprowadź swój|treść twojej wiadomości/i.test(v)\n);\n\nconst kontakt = {\n  telefon: telefonFinal,\n  telefony: uniq([...tekstTelefonu, ...telefonHref]),\n  email: emailFinal,\n  emaile: emailHref,\n  www: wwwFinal,\n  linki: wwwHref,\n};\n\nconst formularz = {\n  nazwyPol: formularzNazwy,\n  placeholders: formularzPlaceholders,\n  opcjeSelect: formularzOpcje,\n};\n\nconst nawigacja = naglowki.filter(v =>\n  !/^kompleksowe rozwiązania do biur$/i.test(v) || naglowki.length === 1\n);\n\nreturn [\n  {\n    json: {\n      tytul,\n      cena,\n      oferta,\n      opis,\n      naglowki,\n      nawigacja,\n      kontakt,\n      formularz,\n      linki,\n    }\n  }\n];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -96,
+        0
+      ],
+      "id": "bca505d9-f170-42af-b44f-504f28124fe9",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "ai_tool": [
+        []
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chat": {
+      "main": [
+        []
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ff4fb861-6661-4c14-a269-369cb8ceee1a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "1ed9fdd1075be56d52081ada02ef91bd5007875f8d6fd8d1fefcb93ef8d6aff4"
+  },
+  "nodeGroups": [],
+  "id": "Xo7LpEUv8CRMYeXJ",
+  "tags": []
+}
