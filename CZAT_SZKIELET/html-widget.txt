@@ -1,0 +1,25 @@
+    <!-- Widget Configuration -->
+    <script>
+        window.ChatWidgetConfig = {
+            webhook: {
+                url: 'https://n8n.devmesh.xyz/webhook/932dc328-f1bc-470e-ae29-3cb593f439a4/chat',
+                route: 'general'
+            },
+            branding: {
+                logo: 'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a7/React-icon.svg/1200px-React-icon.svg.png',
+                name: 'eden AI', // Your company name
+                welcomeText: 'Hi 👋, how can we help?', //Welcome message
+                responseTimeText: 'We typically respond right away' //Response time message
+            },
+            style: {
+                primaryColor: '#854fff', //Primary color
+                secondaryColor: '#6b3fd4', //Secondary color
+                position: 'right', //Position of the widget (left or right)
+                backgroundColor: '#ffffff', //Background color of the chat widget
+                fontColor: '#333333' //Text color for messages and interface
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/gh/juansebsol/n8n-chatbot-template@latest/chat-widget.js"></script>
+    <!-- Widget Script -->
+    
