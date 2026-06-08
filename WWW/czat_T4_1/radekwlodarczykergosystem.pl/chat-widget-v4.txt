@@ -1,0 +1,78 @@
+// kontakt z N8N - generowanie unikalnego ID sesji i ustawienie URL webhooka
+
+    const sessionId = crypto.randomUUID();
+    const webhookUrl = 'http://localhost:5678/webhook/604032c3-b650-4f37-acf4-cbae2ea87aca/chat';   // TU_WKLEJ_URL_Z_CHAT_TRIGGER
+
+    
+    
+// Dodaj funkcję do wyświetlania wiadomości W Twoim pliku warto uporządkować render wiadomości do jednej funkcji, zamiast duplikować kod.
+// Ta funkcja będzie używana zarówno dla wiadomości użytkownika, jak i odpowiedzi z n8n.
+    
+function addMessage(text, type) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `chat-message ${type}`;
+    messageDiv.textContent = text;
+    messagesContainer.appendChild(messageDiv);
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+}
+
+// od tego miejsca jest wstawiona obsługa logiki wysyłki wiadomości 
+  // do n8n i odbierania odpowiedzi, a także wyświetlania ich w oknie czatu. 
+  // Warto zauważyć, że funkcja addMessage została stworzona, aby ułatwić dodawanie wiadomości zarówno od użytkownika, jak i od bota,
+  //  co pozwala na bardziej przejrzysty kod i łatwiejsze zarządzanie wiadomościami w przyszłości.
+
+  sendButton.addEventListener('click', async () => {
+    const message = textarea.value.trim();
+    if (!message) return;
+
+    addMessage(message, 'user');
+    textarea.value = '';
+
+    try {
+        const response = await fetch(webhookUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                action: 'sendMessage',
+                sessionId: sessionId,
+                chatInput: message,
+                metadata: {
+                    source: 'radekwlodarczykergosystem.pl'
+                }
+            })
+        });
+
+        const data = await response.json();
+                    console.log(data);                            // Dodany log, aby zobaczyć strukturę odpowiedzi z n8n i ułatwić debugowanie WYWALIĆ!!!!
+
+        let botReply = 'Brak odpowiedzi z workflow.';
+        if (Array.isArray(data) && data[0]?.output) {
+            botReply = data[0].output;
+        } else if (data?.output) {
+            botReply = data.output;
+        } else if (data?.text) {
+            botReply = data.text;
+        }
+
+        addMessage(botReply, 'bot');
+    } catch (error) {
+        console.error('Błąd połączenia z n8n:', error);
+        addMessage('Nie udało się połączyć z chatbotem.', 'bot');
+    }
+});
+// Dodatkowo, warto dodać obsługę klawisza Enter, aby użytkownicy mogli wysyłać wiadomości bez konieczności klikania przycisku.???
+//   sendButton.addEventListener("click", () => {
+//     const message = textarea.value.trim();
+//     if (message) {
+//       const userMessageDiv = document.createElement("div");
+//       userMessageDiv.className = "chat-message user";
+//       userMessageDiv.textContent = message;
+//       messagesContainer.appendChild(userMessageDiv);
+//       messagesContainer.scrollTop = messagesContainer.scrollHeight;
+//       textarea.value = "";
+//       // TODO: Add bot response, mascot animation, etc.
+//     }
+//   });
+
