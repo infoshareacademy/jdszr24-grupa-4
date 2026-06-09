@@ -373,8 +373,7 @@
   // const webhookUrl = "http://localhost:5678/webhook/chat-radoslaw_wlodarczyk";
   // const webhookUr2 =
   //   "C:\\1\\T4\\jdszr24-grupa-4\\WWW\\czat_T4_1\\radekwlodarczykergosystem.pl\\chat-radoslaw_wlodarczyk.js";
-  const webhookUr1 =
-    "http://localhost:8080/radekwlodarczykergosystem.pl/chat-radoslaw_wlodarczyk.js";
+  const webhookUrl = "http://localhost:8080/webhook/chat-radoslaw_wlodarczyk";
 
   const styles = `
     .n8n-chat-widget {
@@ -602,7 +601,7 @@
   brandHeader.className = "brand-header";
   brandHeader.innerHTML = `
     <div class="mascot" title="Mascot">🤖</div>
-    <span>Radosław Włodarczyk</span>
+    <span>Rada Radosław</span>
     <button class="close-button" aria-label="Close chat" type="button">×</button>
   `;
   chatContainer.appendChild(brandHeader);
@@ -685,6 +684,19 @@
           pageUrl: window.location.href,
           userAgent: navigator.userAgent,
           timestamp: new Date().toISOString(),
+          // const response = await fetch(webhookUrl, {
+          //   method: "POST",
+          //   headers: {
+          //     "Content-Type": "application/json",
+          //     Accept: "application/json, text/plain, */*",
+          //   },
+          //   body: JSON.stringify({
+          //     message,
+          //     sessionId,
+          //     source: window.location.hostname,
+          //     pageUrl: window.location.href,
+          //     userAgent: navigator.userAgent,
+          //     timestamp: new Date().toISOString(),
         }),
       });
 
