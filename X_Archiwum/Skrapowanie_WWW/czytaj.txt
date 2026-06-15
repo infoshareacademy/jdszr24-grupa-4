@@ -1,0 +1,209 @@
+
+
+skraper_faq.py
+
+
+
+Ten skrypt miał być takim “URL harvesterem” z wielu plików CSV – normalizuje domeny, łączy je z wcześniej zebranymi, deduplikuje i zapisuje do jednego wejściowego pliku `faq_input.csv` pod dalszy pipeline (np. scrapowanie FAQ, RAG).
+
+Rozbiję go na logiczne kroki.
+
+***
+
+## Cel skryptu
+
+- Przejść po wszystkich plikach CSV w katalogu `LINKI`.  
+- Wyciągnąć z nich pola, które wyglądają na domeny / URL-e (nawet jeśli są zaśmiecone opisem).  
+- Znormalizować je do postaci `https://domena.tld`.  
+- Dołączyć do już istniejących URL-i w `faq_input.csv`.  
+- Zrobić deduplikację i zapisać z powrotem `faq_input.csv` z jedną kolumną `url`.
+
+***
+
+## Funkcje pomocnicze
+
+### `normalize_domain(raw: str) -> str`
+
+Ma z “brudnej” wartości typu:
+
+- `"forte.com.pl biznes-meble"`  
+- `"https://forte.com.pl/meble"`  
+- `"www.meble.pl sklep"`  
+
+zrobić czysty URL:
+
+- `https://forte.com.pl`  
+- `https://forte.com.pl`  
+- `https://www.meble.pl`
+
+Krok po kroku:
+
+1. Sprawdza, czy wejście to string – jeśli nie, zwraca `None`.
+2. `txt = raw.strip()` usuwa białe znaki na końcach.
+3. `first_part = txt.split()[0]` bierze **tylko pierwszy token** przed spacją – czyli z `"forte.com.pl biznes-meble"` zostaje `"forte.com.pl"`.
+4. Usuwa prefiks `http://` / `https://` z początku, jeśli występuje:  
+   `re.sub(r"^https?://", "", ...)`.
+5. Jeśli w `first_part` nie ma kropki (`.`), zakłada, że to nie domena → `None`.
+6. Dokleja `https://` i ucina ewentualne ukośniki z końca:  
+   `return "https://" + first_part.strip("/")`.
+
+Efekt: dostajesz równomierne, “kanoniczne” URL-e do dalszego przetwarzania.
+
+***
+
+### `is_probably_domain(raw: str) -> bool`
+
+To lekka heurystyka “czy to wygląda na domenę/URL”:
+
+1. Wejście musi być string, inaczej `False`.
+2. `raw.strip()` oczyszcza białe znaki.
+3. Jeśli są spacje, bierze tylko pierwszy token przed spacją:  
+   `if " " in raw: raw = raw.split()[0]`.
+4. Zwraca `True` jeśli ten fragment ma kropkę (`"." in raw`).
+
+Czyli “coś.z.kropką” (np. `forte.com.pl`, `www.meble.pl`) traktuje jak domenę, resztę ignoruje.
+
+***
+
+## Krok 1: Wczytanie istniejących URL-i
+
+```python
+existing_urls = []
+if os.path.isfile(OUTPUT_FILE):
+    try:
+        existing_df = pd.read_csv(OUTPUT_FILE, dtype=str, encoding="utf-8")
+        if "url" in existing_df.columns:
+            existing_urls = [
+                str(v).strip()
+                for v in existing_df["url"].dropna().astype(str)
+                if str(v).strip()
+            ]
+    except Exception as e:
+        print(f"Nie udało się wczytać istniejącego faq_input.csv: {e}")
+```
+
+- Jeśli `faq_input.csv` już istnieje:  
+  – wczytuje go do `existing_df`,  
+  – bierze kolumnę `url`,  
+  – czyści whitespace, wyrzuca puste,  
+  – zapisuje do listy `existing_urls`.
+
+Te adresy będą punktem wyjścia – nie stracisz tego, co już zebrałeś.
+
+`all_urls = list(existing_urls)` – startowy zbiornik URL-i (stare + później nowe).
+
+***
+
+## Krok 2: Przetwarzanie plików z katalogu `LINKI`
+
+```python
+for fname in os.listdir(SOURCE_DIR):
+    if not fname.lower().endswith(".csv"):
+        continue
+    fpath = os.path.join(SOURCE_DIR, fname)
+    print(f"Przetwarzam: {fpath}")
+```
+
+- Iteracja po wszystkich plikach w `SOURCE_DIR`.  
+- Filtruje tylko `.csv`.  
+- Dla każdego CSV próbuje go wczytać:
+
+```python
+try:
+    df = pd.read_csv(
+        fpath,
+        dtype=str,
+        encoding="utf-8",
+        sep=None,
+        engine="python"
+    )
+except Exception:
+    try:
+        df = pd.read_csv(fpath, dtype=str, encoding="utf-8")
+    except Exception as e:
+        print(f"Pomijam {fpath} (błąd: {e})")
+        continue
+```
+
+- Pierwsza próba: parser `python` + `sep=None` (autodetekcja separatora).  
+- Jeśli padnie, druga próba: domyślny parser, domyślny separator.  
+- Jeśli obie się wywalą, plik jest pomijany.
+
+### Szukanie kolumn z domenami
+
+```python
+col_candidates = [c for c in df.columns
+                  if any(k in c.lower() for k in ["strona", "url", "link", "www", "adres"])]
+
+if not col_candidates:
+    col_candidates = list(df.columns)
+```
+
+- Szuka kolumn, których nazwy **zawierają** słowa-klucze: `strona`, `url`, `link`, `www`, `adres`.  
+- Jeśli nic nie znajdzie → bierze **wszystkie kolumny** jako kandydatów.
+
+### Wyciąganie potencjalnych domen z wybranych kolumn
+
+```python
+for col in col_candidates:
+    for v in df[col].dropna().astype(str):
+        v = v.strip()
+        if is_probably_domain(v):
+            url = normalize_domain(v)
+            if url:
+                all_urls.append(url)
+```
+
+- Dla każdej kandydackiej kolumny:
+  - iteruje po niepustych (`dropna()`),  
+  - strippuje whitespace,  
+  - sprawdza heurystyką `is_probably_domain`,  
+  - jak przejdzie → `normalize_domain`,  
+  - jeśli to zwróci poprawny URL → dodaje do `all_urls`.
+
+W efekcie zbierasz wszystkie “sensowne” domeny/URL-e z wszystkich plików CSV w katalogu.
+
+***
+
+## Krok 3: Deduplikacja
+
+```python
+seen = set()
+unique_urls = []
+for url in all_urls:
+    if url not in seen:
+        seen.add(url)
+        unique_urls.append(url)
+```
+
+- Klasyczny pattern:  
+  – `seen` to set widzianych adresów,  
+  – `unique_urls` zachowuje kolejność pierwszego wystąpienia.  
+- Dzięki temu **stare + nowe URL-e** zostają bez duplikatów.
+
+***
+
+## Krok 4: Zapis do `faq_input.csv`
+
+```python
+out_df = pd.DataFrame({"url": unique_urls})
+os.makedirs(os.path.dirname(OUTPUT_FILE), exist_ok=True)
+out_df.to_csv(OUTPUT_FILE, index=False, encoding="utf-8")
+
+print(f"Zapisano {len(unique_urls)} unikalnych URL-i do {OUTPUT_FILE}")
+```
+
+- Tworzy DataFrame z jedną kolumną `url`.  
+- Upewnia się, że katalog docelowy istnieje (`os.makedirs(..., exist_ok=True)`). [docs.python](https://docs.python.org/3/library/os.path.html)
+- Zapisuje `faq_input.csv` (bez indeksu, UTF-8).  
+- Wypisuje ile unikalnych adresów zebrał.
+
+To jest plik wejściowy pod Twój kolejny etap: scraping FAQ, generowanie wektorówki, RAG itp.
+
+***
+
+Jeśli chcesz, mogę dorzucić do tego skryptu:
+
+- prosty log w CSV/JSON, z którego pliku (.csv) pochodził dany URL (np. kolumna `source_file`),  
+- filtrowanie do konkretnych domen (whitelist/blacklist),  
+- prosty test uruchamiany na końcu (np. ile domen vs. subpages).
