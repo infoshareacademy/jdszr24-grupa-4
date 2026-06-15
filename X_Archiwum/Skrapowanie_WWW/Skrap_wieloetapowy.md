@@ -1,5 +1,3 @@
-<img src="https://r2cdn.perplexity.ai/pplx-full-logo-primary-dark%402x.png" style="height:64px;margin-right:32px"/>
-
 # A nie możemy? Diagnozować? Jeżeli po diagnozie mamy wyniki pozytywne, na przykład na. Dwóch kolejnych. Pytaniach, to przechodzimy do scrapowania. Jeżeli mamy Błędne... Odpowiedzi z diagnozy. To przechodzimy do drugiej diagnozy. I tak z trzecią, czwartą i kolejną. W ten sposób w końcu obsłużymy wszystkie ustawienia. Jakie będziemy. Spotykać.
 
 Da się to zrobić – możesz zbudować **wielostopniowy „tryb auto‑detekcji strategii”**, który:
@@ -13,30 +11,30 @@ To jest dokładnie to, o czym piszesz – automatyczne „przeklikiwanie” stra
 
 Pokażę Ci szkic takiego mechanizmu w Twoim stylu, bez rozwalania obecnego kodu.
 
-***
+---
 
 ## Koncepcja: candidate parsers + auto‑detekcja
 
 Idea:
 
 1. Definiujesz kilka **kandydatów** (strategii) jako małe obiekty/funkcje:
-    - `strategy_ac` – obecny parser `ac-*` (Mebligo/Selsey).
-    - `strategy_maxfliz` – parser Maxfliz (`.faq-module`).
-    - `strategy_generic` – ogólny heuristic parser FAQ (pytania z `?` w nagłówkach + odpowiedzi z sąsiednich `p`).
+   - `strategy_ac` – obecny parser `ac-*` (Mebligo/Selsey).
+   - `strategy_maxfliz` – parser Maxfliz (`.faq-module`).
+   - `strategy_generic` – ogólny heuristic parser FAQ (pytania z `?` w nagłówkach + odpowiedzi z sąsiednich `p`).
 2. Funkcja **`try_strategy_on_sample`**:
-    - bierze HTML (już pobrany raz),
-    - wybiera kilka bloków (np. 3),
-    - odpala strategię,
-    - sprawdza, ile z nich dało sensowne pary Q\&A (np. `len(question) > 10`, `len(answer) > 20`, zawiera polskie litery, `?` itd.),
-    - zwraca: „OK / FAIL” i ewentualnie sample do debugowania.
+   - bierze HTML (już pobrany raz),
+   - wybiera kilka bloków (np. 3),
+   - odpala strategię,
+   - sprawdza, ile z nich dało sensowne pary Q\&A (np. `len(question) > 10`, `len(answer) > 20`, zawiera polskie litery, `?` itd.),
+   - zwraca: „OK / FAIL” i ewentualnie sample do debugowania.
 3. Funkcja **`auto_detect_strategy`**:
-    - ma listę strategii w kolejności priorytetu,
-    - po kolei robi `try_strategy_on_sample` dla każdej,
-    - jeśli któraś da **≥ 2 poprawne Q\&A** → uznajemy ją za wybraną dla tego URL,
-    - jeśli żadna nie przejdzie – log „nie obsłużone”.
+   - ma listę strategii w kolejności priorytetu,
+   - po kolei robi `try_strategy_on_sample` dla każdej,
+   - jeśli któraś da **≥ 2 poprawne Q\&A** → uznajemy ją za wybraną dla tego URL,
+   - jeśli żadna nie przejdzie – log „nie obsłużone”.
 4. Na końcu, gdy znamy strategię, odpalamy **pełne scrapowanie** (bez powtarzania Selenium).
 
-***
+---
 
 ## Minimalny szkic kodu (pod Twoje istniejące funkcje)
 
@@ -166,16 +164,16 @@ def scrape_auto(url: str, shop_name: str, debug_sample: int = 3) -> List[Dict]:
 W ten sposób:
 
 - Dla Mebligo/Selsey:
-    - `strategy_ac` przejdzie test (bo znajdzie sporo sensownych Q\&A),
-    - scrapowanie pójdzie tą strategią.
+  - `strategy_ac` przejdzie test (bo znajdzie sporo sensownych Q\&A),
+  - scrapowanie pójdzie tą strategią.
 - Dla Maxfliz:
-    - `strategy_ac` da `FAIL` (0 bloków),
-    - `strategy_maxfliz` da `OK` (pytania/odpowiedzi z `.faq-module`),
-    - scrapowanie pójdzie `strategy_maxfliz`.
+  - `strategy_ac` da `FAIL` (0 bloków),
+  - `strategy_maxfliz` da `OK` (pytania/odpowiedzi z `.faq-module`),
+  - scrapowanie pójdzie `strategy_maxfliz`.
 - Dla innej strony:
-    - jeśli żadna strategia nie przejdzie testu → log, żadnych Q\&A, brak duplikatów, Selenium nie jest wożone w kółko.
+  - jeśli żadna strategia nie przejdzie testu → log, żadnych Q\&A, brak duplikatów, Selenium nie jest wożone w kółko.
 
-***
+---
 
 ## Jak to wpiąć w Twój obecny kod
 
@@ -218,7 +216,7 @@ def process_urls(input_csv, output_csv):
 
 Nie musisz ręcznie rozpoznawać domen ani pisać `if domain == ...` – robi to za Ciebie `auto_detect_strategy`, o ile dopisujesz kolejne strategie do `CANDIDATES`.
 
-***
+---
 
 ## Co dalej
 
@@ -232,4 +230,3 @@ Nie musisz ręcznie rozpoznawać domen ani pisać `if domain == ...` – robi to
 W ten sposób Twoja wizja „pierwsza diagnoza, druga diagnoza, trzecia…” jest zaimplementowana jako **lista kandydatów** i prosty test sensowności Q\&A – bez rozbijania działającego kodu na Mebligo/Selsey.
 
 Jeśli chcesz, w kolejnym kroku mogę napisać Ci konkretną `strategy_forte` / `strategy_szynaka` po tym, jak pokażesz 1 debug‑blok HTML z tych stron.
-
