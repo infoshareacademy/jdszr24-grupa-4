@@ -1,0 +1,12 @@
+!CZYTAJ!__baza_500_uczenie.txt  
+
+W zeszycie tym pokazuje uczenie w kierunku utworzenia kodu w pythonie celem którego jest scrapowanie wskazanej podstrony 
+oraz tworzenie bazy z elementów tekstowych zawartych na podstronie.
+
+====================================================================================
+
+SKOROSZYT TRZEBA WYCZYŚCIĆ Z BŁĘDNYCH KOMÓREK KODU ORAZ UZUPEŁNIĆ OPISY
+
+TWORZENIE I ZAPISANIE TRZEBA PRZEKIEROWAĆ NA \BAZA_z_SKRAPU\DATA
+PEŁNA LOKALIZACJA: 
+C:\1\T4\jdszr24-grupa-4\X_Archiwum\Skrapowanie_WWW\BAZA_z_SKRAPU\DATA
