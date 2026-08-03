@@ -1,0 +1,168 @@
+{
+  "name": "Czat_Boot_21 - Ergosystem On-Demand Ingestion",
+  "nodes": [
+    {
+      "id": "WebhookNode",
+      "name": "Webhook - Chat Entry",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [-1200, 0],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ergosystem-chat-on-demand",
+        "responseMode": "onReceived",
+        "options": {
+          "responseContentType": "application/json"
+        }
+      }
+    },
+    {
+      "id": "SetUserMessage",
+      "name": "Set User Message",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3,
+      "position": [-1000, 0],
+      "parameters": {
+        "mode": "keepKeyMatches",
+        "keepOnlySet": false,
+        "assignments": [
+          {
+            "id": "msg-1",
+            "name": "userMessage",
+            "value": "={{$json[\"body\"] && $json[\"body\"][\"message\"] ? $json[\"body\"][\"message\"] : ($json[\"message\"] || \"\")}}",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "id": "CodeLoadJson",
+      "name": "Code - Load & Chunk JSON",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-800, 0],
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "const fs = require('fs');\nconst path = '/srv/n8n_v2/json/output.json';\n\n// heurystyczne markery do odcinania stopki\nconst FOOTER_MARKERS = [\n  'Ergosystem Oferujemy wysokiej klasy',\n  'Dane Firmy ERGOSYSTEM',\n  'Kategorie Meble pracownicze'\n];\n\n// prosta funkcja czyszcząca stopkę\nfunction trimFooter(text) {\n  let idx = -1;\n  for (const marker of FOOTER_MARKERS) {\n    const pos = text.indexOf(marker);\n    if (pos !== -1) {\n      if (idx === -1 || pos < idx) idx = pos;\n    }\n  }\n  if (idx !== -1) {\n    return text.slice(0, idx).trim();\n  }\n  return text.trim();\n}\n\nfunction cleanText(text) {\n  if (!text) return '';\n  return String(text)\n    .replace(/\\s+/g, ' ')\n    .replace(/\\u00a0/g, ' ')\n    .trim();\n}\n\nfunction chunkText(text, size) {\n  const chunks = [];\n  if (!text || !text.trim()) return chunks;\n  for (let i = 0; i < text.length; i += size) {\n    const chunk = text.slice(i, i + size).trim();\n    if (chunk.length > 0) {\n      chunks.push(chunk);\n    }\n  }\n  return chunks;\n}\n\n// wczytanie pliku JSON\nlet raw;\ntry {\n  raw = fs.readFileSync(path, 'utf8');\n} catch (e) {\n  throw new Error(`Nie udało się odczytać pliku ${path}: ${e.message}`);\n}\n\nlet docs;\ntry {\n  docs = JSON.parse(raw);\n} catch (e) {\n  throw new Error(`Nie udało się sparsować JSON z ${path}: ${e.message}`);\n}\n\nif (!Array.isArray(docs)) {\n  throw new Error('output.json nie jest tablicą dokumentów');\n}\n\n// jedno pytanie (userMessage) z poprzedniego node'a\nconst userMessage = items[0].json.userMessage || '';\n\nconst MAX_DOCS = 200; // limit bezpieczeństwa\nconst CHUNK_SIZE = 1200; // ~1200 znaków\n\nconst out = [];\n\nfor (let i = 0; i < docs.length && i < MAX_DOCS; i++) {\n  const d = docs[i];\n  const url = d.url || d.link || '';\n  const title = d.title || '';\n  const body = d.body_text || d.body || d.cleanedText || '';\n\n  let text = cleanText(body);\n  text = trimFooter(text);\n\n  if (!text || text.length < 50) continue; // odetnij śmieci\n\n  const chunks = chunkText(text, CHUNK_SIZE);\n\n  chunks.forEach((chunkText, idx) => {\n    out.push({\n      json: {\n        userMessage,\n        docId: i,\n        chunkIndex: idx,\n        chunkId: `${i}::${idx}`,\n        url,\n        title,\n        chunkText\n      }\n    });\n  });\n}\n\nif (out.length === 0) {\n  // nadal zwróć choć jeden item, żeby agent miał co robić\n  return [{ json: { userMessage, selectedContext: '', note: 'Brak chunków z output.json' } }];\n}\n\nreturn out;"
+      }
+    },
+    {
+      "id": "CodeSelectTopK",
+      "name": "Code - Select Top K",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [-600, 0],
+      "parameters": {
+        "language": "JavaScript",
+        "jsCode": "// Prosty pseudo-embedding: TF na słowach + cosinus\n\nfunction tokenize(text) {\n  return String(text)\n    .toLowerCase()\n    .replace(/[^\\p{L}\\p{N} ]+/gu, ' ')\n    .split(/\\s+/)\n    .filter(Boolean);\n}\n\nfunction tfVector(tokens) {\n  const freq = new Map();\n  tokens.forEach(t => {\n    freq.set(t, (freq.get(t) || 0) + 1);\n  });\n  return freq;\n}\n\nfunction cosineSim(v1, v2) {\n  let dot = 0;\n  let norm1 = 0;\n  let norm2 = 0;\n\n  for (const [k, v] of v1.entries()) {\n    norm1 += v * v;\n    if (v2.has(k)) {\n      dot += v * v2.get(k);\n    }\n  }\n  for (const v of v2.values()) {\n    norm2 += v * v;\n  }\n  if (!norm1 || !norm2) return 0;\n  return dot / (Math.sqrt(norm1) * Math.sqrt(norm2));\n}\n\nif (!items.length) {\n  return items;\n}\n\nconst userMessage = items[0].json.userMessage || '';\nconst qTokens = tokenize(userMessage);\nconst qVec = tfVector(qTokens);\n\nconst scored = items.map(it => {\n  const tokens = tokenize(it.json.chunkText || '');\n  const vec = tfVector(tokens);\n  const score = cosineSim(qVec, vec);\n  return { ...it, score };\n});\n\n// sortuj malejąco po score\nscored.sort((a, b) => b.score - a.score);\n\nconst K = 5; // top-k chunków\nconst top = scored.slice(0, K);\n\n// sklej kontekst w jeden item\nconst contextParts = top.map(it => {\n  const meta = `[${it.json.title || ''}] (${it.json.url || ''})`;\n  return `${meta}\\n${it.json.chunkText}`;\n});\n\nconst selectedContext = contextParts.join('\\n\\n---\\n\\n');\n\nreturn [\n  {\n    json: {\n      userMessage,\n      selectedContext,\n      debug: {\n        topScores: top.map(t => ({\n          chunkId: t.json.chunkId,\n          score: t.score,\n          url: t.json.url,\n          title: t.json.title\n        }))\n      }\n    }\n  }\n];"
+      }
+    },
+    {
+      "id": "AIAgent",
+      "name": "AI Agent - Ergosystem",
+      "type": "n8nn8n-nodes-langchain.agent",
+      "typeVersion": 3,
+      "position": [-400, 0],
+      "parameters": {
+        "model": "={{$node[\"GeminiModel\"].name}}",
+        "promptType": "define",
+        "prompt": "Jesteś asystentem czatu Ergosystem.\nOdpowiadasz wyłącznie na podstawie dostarczonego kontekstu tekstowego.\n\nKontekst (fragmenty wiedzy):\n{{ $json.selectedContext }}\n\nPytanie użytkownika:\n{{ $json.userMessage }}\n\nZasady:\n1. Odpowiadasz krótko i rzeczowo po polsku.\n2. Nie używasz żadnej wiedzy zewnętrznej poza powyższym kontekstem.\n3. Nie zgadujesz. Jeśli czegoś nie ma w kontekście, odpowiedz dokładnie: \"Nie znalazłem tej informacji w dostarczonym kontekście.\".\n4. Jeżeli pytanie dotyczy oferty, produktów lub usług, szukaj odpowiedzi w kontekście.\n5. Udzielasz jednej, spójnej odpowiedzi, bez cytowania pełnych akapitów dosłownie.",
+        "options": {
+          "maxOutputTokens": 512
+        }
+      }
+    },
+    {
+      "id": "GeminiModel",
+      "name": "Google Gemini Chat Model",
+      "type": "n8nn8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [-400, -200],
+      "parameters": {
+        "modelName": "gemini-3.1-flash-lite"
+      },
+      "credentials": {
+        "googlePalmApi": {
+          "id": "",
+          "name": "YOUR_GOOGLE_GEMINI_CREDENTIAL"
+        }
+      }
+    },
+    {
+      "id": "Respond",
+      "name": "Respond - Final Answer",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [-200, 0],
+      "parameters": {
+        "responseMode": "onReceived",
+        "responseBody": "={{ { \"answer\": $json.output || $json.answer || $json.text || $json } }}"
+      }
+    }
+  ],
+  "connections": {
+    "Webhook - Chat Entry": {
+      "main": [
+        [
+          {
+            "node": "Set User Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set User Message": {
+      "main": [
+        [
+          {
+            "node": "Code - Load & Chunk JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Load & Chunk JSON": {
+      "main": [
+        [
+          {
+            "node": "Code - Select Top K",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code - Select Top K": {
+      "main": [
+        [
+          {
+            "node": "AI Agent - Ergosystem",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent - Ergosystem": {
+      "main": [
+        [
+          {
+            "node": "Respond - Final Answer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "main": [[]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "ergosystem-on-demand-ingestion-v1"
+}
